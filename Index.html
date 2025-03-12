@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPUB Speed Reader</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+        #fileInput { margin: 20px; }
+        #display { font-size: 2em; margin: 20px; height: 50px; }
+        .controls button { margin: 5px; padding: 10px; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <h1>EPUB Speed Reader</h1>
+    <input type="file" id="fileInput" accept=".epub">
+    <div id="display">Load an EPUB to start</div>
+    
+    <div class="controls">
+        <button onclick="startReading()">Start</button>
+        <button onclick="pauseReading()">Pause</button>
+        <button onclick="rewind()">Rewind</button>
+        <button onclick="fastForward()">Fast Forward</button>
+        <input type="number" id="speedInput" value="300" style="width: 50px;"> WPM
+    </div>
+
+    <script>
+        let book, textArray = [], currentWordIndex = 0, reading = false, speed = 300, interval;
+
+        document.getElementById("fileInput").addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    book = ePub(e.target.result);
+                    book.loaded.spine.then(function() {
+                        return book.loaded.spine;
+                    }).then(spine => {
+                        let promises = spine.items.map(section => section.load());
+                        Promise.all(promises).then(sections => {
+                            textArray = sections.map(section => section.document.body.textContent).join(" ").split(/\s+/);
+                            document.getElementById("display").innerText = "Press Start to Begin";
+                        });
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        function startReading() {
+            if (!textArray.length) return;
+            reading = true;
+            speed = parseInt(document.getElementById("speedInput").value);
+            interval = setInterval(() => {
+                if (currentWordIndex < textArray.length && reading) {
+                    document.getElementById("display").innerText = textArray[currentWordIndex++];
+                } else {
+                    clearInterval(interval);
+                }
+            }, 60000 / speed);
+        }
+
+        function pauseReading() {
+            reading = false;
+            clearInterval(interval);
+        }
+
+        function rewind() {
+            currentWordIndex = Math.max(0, currentWordIndex - 10);
+            document.getElementById("display").innerText = textArray[currentWordIndex];
+        }
+
+        function fastForward() {
+            currentWordIndex = Math.min(textArray.length - 1, currentWordIndex + 10);
+            document.getElementById("display").innerText = textArray[currentWordIndex];
+        }
+    </script>
+
+</body>
+</html>
